@@ -1,0 +1,31 @@
+# secrets - NEVER commit these
+.env
+.env.local
+.env.*.local
+API keys.txt
+
+# node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# java / maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+
+# logs
+*.log
+npm-debug.log*
+
+# test / coverage output
+coverage/
+*.tsbuildinfo
+
+# editor / OS
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db

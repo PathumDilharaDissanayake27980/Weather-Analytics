@@ -1,0 +1,113 @@
+spring:
+  application:
+    name: weather-analytics
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: ${SERVER_PORT:8081}
+
+logging:
+  level:
+    com.fidenz.weather: INFO
+
+app:
+  # Origins allowed to call this API from a browser. Never "*" - a wildcard would let any
+  # site on the internet issue authenticated requests on a logged-in user's behalf.
+  cors-allowed-origins:
+    - http://localhost:5173
+  security:
+    # jwt (default) validates an Auth0 access token on every /api/** request.
+    # permissive disables auth for local development only - see SecurityConfig.
+    mode: ${APP_SECURITY_MODE:jwt}
+  cache:
+    # Assignment requirement: raw provider responses cached for 5 minutes.
+    raw-ttl: 5m
+    # The processed, ranked payload is cached separately.
+    processed-ttl: 5m
+
+openweather:
+  # Supplied by environment variable. Never commit a real key.
+  api-key: ${OPENWEATHER_API_KEY:}
+  base-url: https://api.openweathermap.org/data/2.5
+  # Ask the provider for Celsius rather than converting Kelvin ourselves.
+  units: metric
+  connect-timeout: 3s
+  read-timeout: 5s
+
+auth0:
+  domain: ${AUTH0_DOMAIN:}
+  audience: ${AUTH0_AUDIENCE:}
+
+# ---------------------------------------------------------------------------
+# Comfort Index
+#
+# Every number below is tunable without touching Java. See the README for the full
+# rationale; the short version is in the comments here.
+#
+# score = clamp(100 * weightedMean(subScores) * product(multipliers), 0, 100)
+#
+# Bands score 1.0 inside [ideal-min, ideal-max] and fall linearly to a floor at the
+# zero points. The two sides are configured separately because comfort is not symmetric.
+# ---------------------------------------------------------------------------
+comfort:
+  # Need not sum to 1 - the calculator normalises. Adding a parameter therefore does not
+  # require rebalancing the others.
+  weights:
+    temperature: 0.35
+    humidity: 0.25
+    wind: 0.20
+    cloudiness: 0.20
+
+  # ASHRAE Standard 55 comfort zone is roughly 20-26C.
+  # Zero at 40C but only at -5C: heat is punished ~2.2x faster per degree, because
+  # clothing mitigates cold almost indefinitely while sweat evaporation - the body's only
+  # cooling channel above ~35C - fails as humidity rises.
+  temperature:
+    ideal-min: 20
+    ideal-max: 26
+    lower-zero: -5
+    upper-zero: 40
+    lower-floor: 0.0
+    upper-floor: 0.0
+
+  # ASHRAE / EPA guidance puts ideal relative humidity at 40-60%.
+  # lower-zero of -20 is a slope control, not a reachable value: it makes 0% RH score 0.33.
+  # Dry air is irritating; humid air is physiologically disabling, so the humid side is steeper.
+  humidity:
+    ideal-min: 40
+    ideal-max: 60
+    lower-zero: -20
+    upper-zero: 100
+    lower-floor: 0.0
+    upper-floor: 0.0
+
+  # Beaufort 2, "light breeze", is 1.6-3.3 m/s. Note dead calm is NOT ideal - hence a
+  # lower-floor of 0.8 rather than 0. This is the one parameter where zero is not the worst case.
+  wind:
+    ideal-min: 1.5
+    ideal-max: 3.5
+    lower-zero: 0
+    upper-zero: 15
+    lower-floor: 0.80
+    upper-floor: 0.0
+
+  # Scattered cloud beats both glare and gloom. Neither extreme scores zero, because
+  # overcast is drab rather than unbearable - so cloudiness occupies 0.35-1.00.
+  cloudiness:
+    ideal-min: 10
+    ideal-max: 40
+    lower-zero: 0
+    upper-zero: 100
+    lower-floor: 0.85
+    upper-floor: 0.35
+
+  # Multiplicative penalties. These are non-compensatory: no amount of pleasant cloud
+  # cover redeems 44C, and a weighted sum alone would let three good terms outvote one
+  # catastrophic one.
+  rain:       { threshold: 0.0,  slope: 0.06, floor: 0.45 }   # per mm/h
+  snow:       { threshold: 0.0,  slope: 0.10, floor: 0.40 }   # per mm/h
+  feels-gap:  { threshold: 0.0,  slope: 0.03, floor: 0.80 }   # per degree of |feels_like - temp|
+  heat:       { threshold: 35.0, slope: 0.07, floor: 0.30 }   # per degree above 35C
+  cold:       { threshold: 0.0,  slope: 0.04, floor: 0.40 }   # per degree below 0C
+  gale:       { threshold: 12.0, slope: 0.08, floor: 0.50 }   # per m/s above 12

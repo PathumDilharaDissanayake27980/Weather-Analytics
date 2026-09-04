@@ -1,0 +1,17 @@
+# Test defaults. Security is disabled here so controller tests can focus on payload shape;
+# the tests that actually exercise authentication switch it back on explicitly.
+app:
+  security:
+    mode: permissive
+
+openweather:
+  api-key: test-api-key
+  base-url: https://api.openweathermap.org/data/2.5
+
+auth0:
+  domain: test-tenant.eu.auth0.com
+  audience: https://weather-analytics-api
+
+logging:
+  level:
+    com.fidenz.weather: WARN

@@ -1,0 +1,6 @@
+Develop a secure weather analytics application
+	- Retrieves weather data
+	- Process custom matrices ( I have to design) - custom Comfort Index
+	- Present meaning full insight
+	- Caching
+	- Authentication and Authorization (Auth0)
